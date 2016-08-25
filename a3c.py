@@ -70,7 +70,7 @@ class A3C(object):
             reward = np.clip(reward, -1, 1)
 
         if not is_state_terminal:
-            statevar = chainer.Variable(np.expand_dims(self.phi(state), 0))
+            statevar = chainer.Variable(np.expand_dims(self.phi(state), 0).astype(np.float32))
 
         self.past_rewards[self.t - 1] = reward
 

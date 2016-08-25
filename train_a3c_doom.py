@@ -78,7 +78,7 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('processes', type=int)
+    parser.add_argument('--processes', type=int, default=2)
     parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--outdir', type=str, default=None)
     parser.add_argument('--scenario', type=str, default='basic')
@@ -92,8 +92,9 @@ def main():
     parser.add_argument('--use-lstm', action='store_true')
     parser.add_argument('--window-visible', action='store_true')
     parser.set_defaults(window_visible=False)
-    parser.set_defaults(use_lstm=False)
+    parser.set_defaults(use_lstm=True)
     args = parser.parse_args()
+
 
     if args.seed is not None:
         random_seed.set_random_seed(args.seed)
@@ -104,10 +105,9 @@ def main():
 
     def make_env(process_idx, test):
         with env_lock:
-            return doom_env.DoomEnv(window_visible=args.window_visible,
-                                    scenario=args.scenario)
+            return doom_env.Env()
 
-    n_actions = 3
+    n_actions = 4
 
     def model_opt():
         if args.use_lstm:
