@@ -21,14 +21,15 @@ from prepare_output_dir import prepare_output_dir
 def eval_performance(process_idx, make_env, model, phi, n_runs):
     assert n_runs > 1, 'Computing stdev requires at least two runs'
     scores = []
+    env = make_env(process_idx, test=True)
     for i in range(n_runs):
+        env.reset()
         model.reset_state()
-        env = make_env(process_idx, test=True)
         obs = env.reset()
         done = False
         test_r = 0
         while not done:
-            s = chainer.Variable(np.expand_dims(phi(obs), 0))
+            s = chainer.Variable(np.expand_dims(phi(obs), 0).astype(np.float32))
             pout, _ = model.pi_and_v(s)
             a = pout.action_indices[0]
             obs, r, done, info = env.step(a)
@@ -69,7 +70,6 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
 
             total_r += r
             episode_r += r
-
             a = agent.act(obs, r, done)
 
             if done:
@@ -86,7 +86,6 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
 
             if global_t % args.eval_frequency == 0:
                 # Evaluation
-
                 # We must use a copy of the model because test runs can change
                 # the hidden states of the model
                 test_model = copy.deepcopy(agent.model)
@@ -123,8 +122,8 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
     if global_t == args.steps + 1:
         # Save the final model
         agent.save_model(
-            os.path.join(args.outdir, '{}_finish.h5'.format(args.steps)))
-        print('Saved the final model to {}'.format(args.outdir))
+            os.path.join(outdir, '{}_finish.h5'.format(args.steps)))
+        print('Saved the final model to {}'.format(outdir))
 
 
 def train_loop_with_profile(process_idx, counter, make_env, max_score, args,
@@ -147,7 +146,7 @@ def run_a3c(processes, make_env, model_opt, phi, t_max=1, beta=1e-2,
 
     print('Output files are saved in {}'.format(outdir))
 
-    n_actions = 20 * 20
+    # n_actions = 20 * 20
 
     model, opt = model_opt()
 

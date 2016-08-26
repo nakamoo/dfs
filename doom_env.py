@@ -14,9 +14,8 @@ class Env(object):
         return self.env.reset()
 
     def step(self, action):
-        # self.env.render()
+        self.env.render()
         return self.env.step(action)
-
 
 class DoomEnv(object):
 
