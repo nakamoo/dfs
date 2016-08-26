@@ -46,7 +46,8 @@ class A3CFF(chainer.ChainList, a3c.A3CModel):
 class A3CLSTM(chainer.ChainList, a3c.A3CModel):
 
     def __init__(self, n_actions):
-        self.head = dqn_head.NIPSDQNHead(n_input_channels=3)
+        # self.head = dqn_head.NIPSDQNHead(n_input_channels=3)
+        self.head = dqn_head.PredNet()
         self.pi = policy.FCSoftmaxPolicy(
             self.head.n_output_channels, n_actions)
         self.v = v_function.FCVFunction(self.head.n_output_channels)
@@ -67,6 +68,7 @@ class A3CLSTM(chainer.ChainList, a3c.A3CModel):
 
     def reset_state(self):
         self.lstm.reset_state()
+        self.head.reset_state()
 
     def unchain_backward(self):
         self.lstm.h.unchain_backward()
@@ -80,15 +82,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--processes', type=int, default=2)
     parser.add_argument('--seed', type=int, default=None)
-    parser.add_argument('--outdir', type=str, default='./tmp/')
+    parser.add_argument('--outdir', type=str)
     parser.add_argument('--scenario', type=str, default='basic')
     parser.add_argument('--t-max', type=int, default=5)
     parser.add_argument('--beta', type=float, default=1e-2)
     parser.add_argument('--profile', action='store_true')
-    parser.add_argument('--steps', type=int, default=8 * 10 ** 7)
+    parser.add_argument('--steps', type=int, default=3 * 10 ** 3)
     parser.add_argument('--lr', type=float, default=7e-4)
-    parser.add_argument('--eval-frequency', type=int, default=10 ** 5)
-    parser.add_argument('--eval-n-runs', type=int, default=10)
+    parser.add_argument('--eval-frequency', type=int, default=10 ** 3)
+    parser.add_argument('--eval-n-runs', type=int, default=3)
     parser.add_argument('--use-lstm', action='store_true')
     parser.set_defaults(use_lstm=True)
     args = parser.parse_args()
