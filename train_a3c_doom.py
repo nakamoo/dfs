@@ -4,6 +4,7 @@ import multiprocessing as mp
 import chainer
 from chainer import links as L
 from chainer import functions as F
+from chainer import cuda
 import cv2
 import numpy as np
 from PIL import Image
@@ -92,9 +93,14 @@ def main():
     parser.add_argument('--eval-frequency', type=int, default=10 ** 3)
     parser.add_argument('--eval-n-runs', type=int, default=3)
     parser.add_argument('--use-lstm', action='store_true')
+    parser.add_argument('--gpu', '-g', default=0, type=int,
+                        help='GPU ID (negative value indicates CPU)')
     parser.set_defaults(use_lstm=True)
     args = parser.parse_args()
 
+    if args.gpu >= 0:
+        cuda.check_cuda_available()
+    xp = cuda.cupy if args.gpu >= 0 else np
 
     if args.seed is not None:
         random_seed.set_random_seed(args.seed)
@@ -112,8 +118,11 @@ def main():
     def model_opt():
         if args.use_lstm:
             model = A3CLSTM(n_actions)
+
         else:
             model = A3CFF(n_actions)
+        if args.gpu >= 0:
+            model.to_gpu(args.gpu)
         opt = rmsprop_async.RMSpropAsync(lr=args.lr, eps=1e-1, alpha=0.99)
         opt.setup(model)
         opt.add_hook(chainer.optimizer.GradientClipping(40))
