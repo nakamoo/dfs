@@ -90,8 +90,8 @@ def main():
     parser.add_argument('--profile', action='store_true')
     parser.add_argument('--steps', type=int, default=8 * 10 ** 7)
     parser.add_argument('--lr', type=float, default=7e-4)
-    parser.add_argument('--eval-frequency', type=int, default=10 ** 5)
-    parser.add_argument('--eval-n-runs', type=int, default=3)
+    parser.add_argument('--eval-frequency', type=int, default=4 * 10 ** 6)
+    parser.add_argument('--eval-n-runs', type=int, default=10)
     parser.add_argument('--use-lstm', action='store_true')
     parser.add_argument('--gpu', '-g', default=-1, type=int,
                         help='GPU ID (negative value indicates CPU)')
