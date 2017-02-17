@@ -78,7 +78,7 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
                     speed = global_t / elapsed * 60 * 60 / 1000000
                     print('{} global_t:{} local_t:{} lr:{} r:{} speed;{}M/hour'.format(
                         outdir, global_t, local_t, agent.optimizer.lr,
-                        episode_r))
+                        episode_r, speed))
                 episode_r = 0
                 obs = env.reset()
                 r = 0
