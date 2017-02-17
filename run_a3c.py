@@ -66,7 +66,7 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
                 break
 
             agent.optimizer.lr = (
-                                     args.steps - global_t - 1) / args.steps * args.lr
+                args.steps - global_t - 1) / args.steps * args.lr
 
             total_r += r
             episode_r += r
@@ -98,83 +98,85 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
                     elapsed = time.time() - start_time
                     record = (global_t, elapsed, mean, median, stdev)
                     print('\t'.join(str(x) for x in record), file=f)
-                    with max_score.get_lock():
-                        if mean > max_score.value:
-                            # Save the best model so far
-                            print('The best score is updated {} -> {}'.format(
-                                max_score.value, mean))
-                            filename = os.path.join(
-                                outdir, '{}.h5'.format(global_t))
-                            agent.save_model(filename)
-                            print('Saved the current best model to {}'.format(
-                                filename))
-                            max_score.value = mean
+                with max_score.get_lock():
+                    if mean > max_score.value:
+                        # Save the best model so far
+                        print('The best score is updated {} -> {}'.format(
+                            max_score.value, mean))
+                        filename = os.path.join(
+                            outdir, '{}.h5'.format(global_t))
+                        agent.save_model(filename)
+                        print('Saved the current best model to {}'.format(
+                            filename))
+                        max_score.value = mean
 
-        except KeyboardInterrupt:
+    except KeyboardInterrupt:
         if process_idx == 0:
             # Save the current model before being killed
             agent.save_model(os.path.join(
                 outdir, '{}_keyboardinterrupt.h5'.format(global_t)))
             print('Saved the current model to {}'.format(
                 outdir), file=sys.stderr)
-            raise
+        raise
 
-        if global_t == args.steps + 1:
-            # Save the final model
-            agent.save_model(
-                os.path.join(outdir, '{}_finish.h5'.format(args.steps)))
-            print('Saved the final model to {}'.format(outdir))
+    if global_t == args.steps + 1:
+        # Save the final model
+        agent.save_model(
+            os.path.join(outdir, '{}_finish.h5'.format(args.steps)))
+        print('Saved the final model to {}'.format(outdir))
 
-    def train_loop_with_profile(process_idx, counter, make_env, max_score, args,
-                                agent, env, start_time, outdir):
-        import cProfile
-        cmd = 'train_loop(process_idx, counter, make_env, max_score, args, ' \
-              'agent, env, start_time)'
-        cProfile.runctx(cmd, globals(), locals(),
-                        'profile-{}.out'.format(os.getpid()))
 
-    def run_a3c(processes, make_env, model_opt, phi, t_max=1, beta=1e-2,
-                profile=False, steps=8 * 10 ** 7, eval_frequency=10 ** 6,
-                eval_n_runs=10, args={}):
+def train_loop_with_profile(process_idx, counter, make_env, max_score, args,
+                            agent, env, start_time, outdir):
+    import cProfile
+    cmd = 'train_loop(process_idx, counter, make_env, max_score, args, ' \
+        'agent, env, start_time)'
+    cProfile.runctx(cmd, globals(), locals(),
+                    'profile-{}.out'.format(os.getpid()))
 
-        # Prevent numpy from using multiple threads
-        os.environ['OMP_NUM_THREADS'] = '1'
 
-        outdir = prepare_output_dir(args, None)
+def run_a3c(processes, make_env, model_opt, phi, t_max=1, beta=1e-2,
+            profile=False, steps=8 * 10 ** 7, eval_frequency=10 ** 6,
+            eval_n_runs=10, args={}):
 
-        print('Output files are saved in {}'.format(outdir))
+    # Prevent numpy from using multiple threads
+    os.environ['OMP_NUM_THREADS'] = '1'
 
-        # n_actions = 20 * 20
+    outdir = prepare_output_dir(args, None)
 
+    print('Output files are saved in {}'.format(outdir))
+
+    # n_actions = 20 * 20
+
+    model, opt = model_opt()
+
+    shared_params = async.share_params_as_shared_arrays(model)
+    shared_states = async.share_states_as_shared_arrays(opt)
+
+    max_score = mp.Value('f', np.finfo(np.float32).min)
+    counter = mp.Value('l', 0)
+    start_time = time.time()
+
+    # Write a header line first
+    with open(os.path.join(outdir, 'scores.txt'), 'a+') as f:
+        column_names = ('steps', 'elapsed', 'mean', 'median', 'stdev')
+        print('\t'.join(column_names), file=f)
+
+    def run_func(process_idx):
+        env = make_env(process_idx, test=False)
         model, opt = model_opt()
+        async.set_shared_params(model, shared_params)
+        async.set_shared_states(opt, shared_states)
 
-        shared_params = async.share_params_as_shared_arrays(model)
-        shared_states = async.share_states_as_shared_arrays(opt)
+        agent = a3c.A3C(model, opt, t_max, 0.99, beta=beta,
+                        process_idx=process_idx, phi=phi)
 
-        max_score = mp.Value('f', np.finfo(np.float32).min)
-        counter = mp.Value('l', 0)
-        start_time = time.time()
+        if profile:
+            train_loop_with_profile(process_idx, counter, make_env, max_score,
+                                    args, agent, env, start_time,
+                                    outdir=outdir)
+        else:
+            train_loop(process_idx, counter, make_env, max_score,
+                       args, agent, env, start_time, outdir=outdir)
 
-        # Write a header line first
-        with open(os.path.join(outdir, 'scores.txt'), 'a+') as f:
-            column_names = ('steps', 'elapsed', 'mean', 'median', 'stdev')
-            print('\t'.join(column_names), file=f)
-
-            def run_func(process_idx):
-                env = make_env(process_idx, test=False)
-                model, opt = model_opt()
-                async.set_shared_params(model, shared_params)
-                async.set_shared_states(opt, shared_states)
-
-                agent = a3c.A3C(model, opt, t_max, 0.99, beta=beta,
-                                process_idx=process_idx, phi=phi)
-
-                if profile:
-                    train_loop_with_profile(process_idx, counter, make_env, max_score,
-                                            args, agent, env, start_time,
-                                            outdir=outdir)
-                else:
-                    train_loop(process_idx, counter, make_env, max_score,
-                               args, agent, env, start_time, outdir=outdir)
-
-            async.run_async(processes, run_func)
+    async.run_async(processes, run_func)
