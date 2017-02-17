@@ -7,14 +7,14 @@ import numpy as np
 
 class Env(object):
     def __init__(self):
-        self.env = gym.make('Breakout-v0')
+        self.env = gym.make('Pong-v0')
         self.n_actions = self.env.action_space.n
 
     def reset(self):
         return self.env.reset()
 
     def step(self, action):
-        self.env.render()
+        # self.env.render()
         return self.env.step(action)
 
 # class DoomEnv(object):

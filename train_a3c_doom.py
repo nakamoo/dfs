@@ -81,21 +81,21 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--processes', type=int, default=2)
+    parser.add_argument('--processes', type=int, default=8)
     parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--outdir', type=str)
     parser.add_argument('--scenario', type=str, default='basic')
     parser.add_argument('--t-max', type=int, default=5)
     parser.add_argument('--beta', type=float, default=1e-2)
     parser.add_argument('--profile', action='store_true')
-    parser.add_argument('--steps', type=int, default=3 * 10 ** 3)
+    parser.add_argument('--steps', type=int, default=8 * 10 ** 7)
     parser.add_argument('--lr', type=float, default=7e-4)
-    parser.add_argument('--eval-frequency', type=int, default=10 ** 3)
+    parser.add_argument('--eval-frequency', type=int, default=10 ** 5)
     parser.add_argument('--eval-n-runs', type=int, default=3)
     parser.add_argument('--use-lstm', action='store_true')
-    parser.add_argument('--gpu', '-g', default=0, type=int,
+    parser.add_argument('--gpu', '-g', default=-1, type=int,
                         help='GPU ID (negative value indicates CPU)')
-    parser.set_defaults(use_lstm=True)
+    parser.set_defaults(use_lstm=False)
     args = parser.parse_args()
 
     if args.gpu >= 0:
