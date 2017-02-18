@@ -20,13 +20,13 @@ import run_a3c
 import doom_env
 
 
-def phi(obs):
-    pic = Image.fromarray(obs)
-    resize_pic = pic.resize((84, 84))
-    image = np.asarray(resize_pic).transpose(2, 0, 1)
-    image.flags.writeable = True
-    image = image.astype(float) / 255.0
-    return image
+# def phi(obs):
+#     pic = Image.fromarray(obs)
+#     resize_pic = pic.resize((84, 84))
+#     image = np.asarray(resize_pic).transpose(2, 0, 1)
+#     image.flags.writeable = True
+#     image = image.astype(float) / 255.0
+#     return image
 
 
 class A3CFF(chainer.ChainList, a3c.A3CModel):
@@ -81,9 +81,8 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--processes', type=int, default=8)
-    parser.add_argument('--seed', type=int, default=None)
+    parser.add_argument('--seed', type=int, default=100)
     parser.add_argument('--outdir', type=str)
-    parser.add_argument('--scenario', type=str, default='basic')
     parser.add_argument('--t-max', type=int, default=5)
     parser.add_argument('--beta', type=float, default=1e-2)
     parser.add_argument('--profile', action='store_true')
@@ -127,7 +126,7 @@ def main():
         opt.add_hook(chainer.optimizer.GradientClipping(40))
         return model, opt
 
-    run_a3c.run_a3c(args.processes, make_env, model_opt, phi, t_max=args.t_max,
+    run_a3c.run_a3c(args.processes, make_env, model_opt, lambda x: x, t_max=args.t_max,
                     beta=args.beta, profile=args.profile, steps=args.steps,
                     eval_frequency=args.eval_frequency,
                     eval_n_runs=args.eval_n_runs, args=args)

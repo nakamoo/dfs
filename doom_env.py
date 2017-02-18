@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import cv2
 import gym
 
 import numpy as np
@@ -8,14 +9,41 @@ import numpy as np
 class Env(object):
     def __init__(self):
         self.env = gym.make('Pong-v0')
-        self.n_actions = self.env.action_space.n
+        self.real_action = [0, 1, 2, 5]
+        self.n_actions = 4
+        self._state_buffer = None
+        self.render = False
 
     def reset(self):
-        return self.env.reset()
+        self._state_buffer = None
+        return self._preprocess_state(self.env.reset())
 
     def step(self, action):
-        # self.env.render()
-        return self.env.step(action)
+        if self.render:
+            self.env.render()
+
+        state, reward, terminal, info = self.env.step(self.real_action[action])
+        return self._preprocess_state(state), reward, terminal, info
+
+    def _preprocess_state(self, state):
+        # screen shape is (210, 160, 1)
+        gray_observation = cv2.cvtColor(state, cv2.COLOR_BGR2GRAY)
+
+        # resize to height=110, width=84
+        # resized_screen = cv2.resize(gray_observation, (84, 110))
+        # x_t = resized_screen[18:102, :]
+        x_t = cv2.resize(gray_observation, (84, 84))
+        x_t = x_t.astype(np.float32)
+        x_t *= (1.0 / 255.0)
+
+        if self._state_buffer is None:
+            self._state_buffer = np.stack((x_t, x_t, x_t, x_t))
+
+        x_t = np.reshape(x_t, (1, 84, 84))
+
+        self._state_buffer = np.concatenate((np.delete(self._state_buffer, 0, 0), x_t))
+        return self._state_buffer
+
 
 # class DoomEnv(object):
 #
