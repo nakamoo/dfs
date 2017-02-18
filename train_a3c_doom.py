@@ -32,7 +32,7 @@ def phi(obs):
 class A3CFF(chainer.ChainList, a3c.A3CModel):
 
     def __init__(self, n_actions):
-        self.head = dqn_head.NIPSDQNHead(n_input_channels=3)
+        self.head = dqn_head.NIPSDQNHead(n_input_channels=4)
         self.pi = policy.FCSoftmaxPolicy(
             self.head.n_output_channels, n_actions)
         self.v = v_function.FCVFunction(self.head.n_output_channels)
@@ -47,8 +47,7 @@ class A3CFF(chainer.ChainList, a3c.A3CModel):
 class A3CLSTM(chainer.ChainList, a3c.A3CModel):
 
     def __init__(self, n_actions):
-        # self.head = dqn_head.NIPSDQNHead(n_input_channels=3)
-        self.head = dqn_head.PredNet()
+        self.head = dqn_head.NIPSDQNHead(n_input_channels=3)
         self.pi = policy.FCSoftmaxPolicy(
             self.head.n_output_channels, n_actions)
         self.v = v_function.FCVFunction(self.head.n_output_channels)
