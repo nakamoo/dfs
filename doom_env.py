@@ -12,7 +12,7 @@ class Env(object):
         self.real_action = [0, 1, 2, 5]
         self.n_actions = 4
         self._state_buffer = None
-        self.render = True
+        self.render = False
 
     def reset(self):
         self._state_buffer = None

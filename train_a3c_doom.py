@@ -78,7 +78,7 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--processes', type=int, default=1)
+    parser.add_argument('--processes', type=int, default=8)
     parser.add_argument('--seed', type=int, default=100)
     parser.add_argument('--outdir', type=str)
     parser.add_argument('--t-max', type=int, default=5)
