@@ -84,7 +84,6 @@ class A3C(object):
                 R = 0
             else:
                 _, vout = self.model.pi_and_v(statevar, keep_same_state=True)
-                fsout = self.model.dynamic_frame_skip(statevar, keep_same_state=True)
                 R = float(vout.data)
 
             pi_loss = 0
@@ -156,15 +155,15 @@ class A3C(object):
         if not is_state_terminal:
             self.past_states[self.t] = statevar
             pout, vout = self.model.pi_and_v(statevar)
-            fsout = self.model.dynamic_frame_skip(statevar)
-            self.past_action_log_prob[self.t] = fsout.sampled_actions_log_probs(pout.action_indices)
-            self.past_action_entropy[self.t] = fsout.entropy
+            fsout = self.model.fs(statevar, pout.action_indices)
+            self.past_action_log_prob[self.t] = pout.sampled_actions_log_probs
+            self.past_action_entropy[self.t] = pout.entropy
             self.past_values[self.t] = vout
             self.t += 1
-            if self.process_idx == 0:
-                logger.debug('t:%s entropy:%s, probs:%s',
-                             self.t, fsout.entropy.data, fsout.probs.data)
-            return pout.action_indices[0], fsout.dynamic_frame_skip(pout.action_indices)
+            # if self.process_idx == 0:
+            #     logger.debug('t:%s entropy:%s, probs:%s',
+            #                  self.t, vout.entropy.data, vout.probs.data)
+            return pout.action_indices[0], fsout.frameskip[0]
         else:
             self.model.reset_state()
             return None, None

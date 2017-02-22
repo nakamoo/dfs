@@ -27,7 +27,7 @@ class A3CFF(chainer.ChainList, a3c.A3CModel):
         self.pi = policy.FCSoftmaxPolicy(
             self.head.n_output_channels, n_actions)
         self.v = v_function.FCVFunction(self.head.n_output_channels)
-        self.fs = policy.GaussianPolicy(
+        self.fs_p = policy.GaussianPolicy(
             self.head.n_output_channels, n_actions)
         super().__init__(self.head, self.pi, self.v)
         init_like_torch(self)
@@ -36,9 +36,9 @@ class A3CFF(chainer.ChainList, a3c.A3CModel):
         out = self.head(state)
         return self.pi(out), self.v(out)
 
-    def dynamic_frame_skip(self, state, keep_same_state=False):
+    def fs(self, state, action_indices, keep_same_state=False):
         out = self.head(state)
-        return self.fs(out)
+        return self.fs_p(out, action_indices)
 
 
 class A3CLSTM(chainer.ChainList, a3c.A3CModel):

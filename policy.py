@@ -72,22 +72,18 @@ class GaussianPolicy(chainer.ChainList, Policy):
             for i in range(n_hidden_layers - 1):
                 layers.append(L.Linear(n_hidden_channels, n_hidden_channels))
             layers.append(L.Linear(n_hidden_channels, n_actions))
-            layers.append(L.Linear(n_hidden_channels, 1))
         else:
             layers.append(L.Linear(n_input_channels, n_actions))
-            layers.append(L.Linear(n_input_channels, 1))
 
         super(GaussianPolicy, self).__init__(*layers)
 
-    def __call__(self, state):
-        mu, var = self.compute_logits(state)
-        return policy_output.GaussianPolicyOutput(mu, var)
+    def __call__(self, state, action_indices):
+        return policy_output.GaussianPolicyOutput(self.compute_mu(state), action_indices)
 
-    def compute_logits(self, state):
+    def compute_mu(self, state):
         h = state
-        for layer in self[:-2]:
+        for layer in self[:-1]:
             h = F.relu(layer(h))
-        mu = F.relu(self[-2](h))
-        var = F.softplus(self[-1](h))
-        return mu, var
+        mu = F.relu(self[-1](h))
+        return mu
 
