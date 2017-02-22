@@ -32,7 +32,7 @@ class A3C(object):
 
     def __init__(self, model, optimizer, t_max, gamma, beta=1e-2,
                  process_idx=0, clip_reward=True, phi=lambda x: x,
-                 pi_loss_coef=1.0, v_loss_coef=0.5,
+                 v_loss_coef=0.5,
                  keep_loss_scale_same=False):
 
         # Globally shared model
@@ -48,14 +48,13 @@ class A3C(object):
         self.process_idx = process_idx
         self.clip_reward = clip_reward
         self.phi = phi
-        self.pi_loss_coef = pi_loss_coef
         self.v_loss_coef = v_loss_coef
         self.keep_loss_scale_same = keep_loss_scale_same
 
         self.t = 0
         self.t_start = 0
-        self.past_action_log_prob = {}
-        self.past_action_entropy = {}
+        self.past_frameskip = {}
+        self.past_fsoutput = {}
         self.past_states = {}
         self.past_rewards = {}
         self.past_values = {}
@@ -86,7 +85,7 @@ class A3C(object):
                 _, vout = self.model.pi_and_v(statevar, keep_same_state=True)
                 R = float(vout.data)
 
-            pi_loss = 0
+            fs_loss = 0
             v_loss = 0
             for i in reversed(range(self.t_start, self.t)):
                 R *= self.gamma
@@ -95,21 +94,13 @@ class A3C(object):
                 if self.process_idx == 0:
                     logger.debug('s:%s v:%s R:%s',
                                  self.past_states[i].data.sum(), v.data, R)
-                advantage = R - v
+                advantage = R - v[0]
                 # Accumulate gradients of policy
-                log_prob = self.past_action_log_prob[i]
-                entropy = self.past_action_entropy[i]
+                frameskip = chainer.Variable(np.asarray(self.past_frameskip[i]).astype(np.float32))
+                fsoutput = self.past_fsoutput[i]
 
-                # Log probability is increased proportionally to advantage
-                pi_loss -= log_prob * float(advantage.data)
-                # Entropy is maximized
-                pi_loss -= self.beta * entropy
-                # Accumulate gradients of value function
-
+                fs_loss += ((frameskip - fsoutput) ** 2) * advantage * (10 ** 0)
                 v_loss += (v - R) ** 2 / 2
-
-            if self.pi_loss_coef != 1.0:
-                pi_loss *= self.pi_loss_coef
 
             if self.v_loss_coef != 1.0:
                 v_loss *= self.v_loss_coef
@@ -118,13 +109,12 @@ class A3C(object):
             if self.keep_loss_scale_same and \
                     self.t - self.t_start < self.t_max:
                 factor = self.t_max / (self.t - self.t_start)
-                pi_loss *= factor
                 v_loss *= factor
 
             if self.process_idx == 0:
-                logger.debug('pi_loss:%s v_loss:%s', pi_loss.data, v_loss.data)
+                logger.debug('fs_loss:%s v_loss:%s', fs_loss.data, v_loss.data)
 
-            total_loss = pi_loss + F.reshape(v_loss, pi_loss.data.shape)
+            total_loss = fs_loss + F.reshape(v_loss, fs_loss.data.shape)
 
             # Compute gradients using thread-specific model
             self.model.zerograds()
@@ -144,20 +134,20 @@ class A3C(object):
             self.sync_parameters()
             self.model.unchain_backward()
 
-            self.past_action_log_prob = {}
-            self.past_action_entropy = {}
+            self.past_frameskip = {}
             self.past_states = {}
             self.past_rewards = {}
             self.past_values = {}
 
             self.t_start = self.t
 
+        # normal
         if not is_state_terminal:
             self.past_states[self.t] = statevar
             pout, vout = self.model.pi_and_v(statevar)
             fsout = self.model.fs(statevar, pout.action_indices)
-            self.past_action_log_prob[self.t] = pout.sampled_actions_log_probs
-            self.past_action_entropy[self.t] = pout.entropy
+            self.past_frameskip[self.t] = fsout.frameskip
+            self.past_fsoutput[self.t] = fsout.sample_output
             self.past_values[self.t] = vout
             self.t += 1
             # if self.process_idx == 0:

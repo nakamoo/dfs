@@ -4,6 +4,7 @@ import multiprocessing as mp
 import chainer
 from chainer import links as L
 from chainer import functions as F
+from chainer import serializers
 from chainer import cuda
 import cv2
 import numpy as np
@@ -77,7 +78,7 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--processes', type=int, default=8)
+    parser.add_argument('--processes', type=int, default=1)
     parser.add_argument('--seed', type=int, default=100)
     parser.add_argument('--outdir', type=str)
     parser.add_argument('--t-max', type=int, default=5)
@@ -85,7 +86,7 @@ def main():
     parser.add_argument('--profile', action='store_true')
     parser.add_argument('--steps', type=int, default=8 * 10 ** 7)
     parser.add_argument('--lr', type=float, default=7e-4)
-    parser.add_argument('--eval-frequency', type=int, default=4 * 10 ** 6)
+    parser.add_argument('--eval-frequency', type=int, default=2 * 10 ** 4)
     parser.add_argument('--eval-n-runs', type=int, default=10)
     parser.add_argument('--use-lstm', action='store_true')
     parser.add_argument('--gpu', '-g', default=-1, type=int,
@@ -108,18 +109,23 @@ def main():
         with env_lock:
             return doom_env.Env()
 
+    # FIXME: handling from env
     n_actions = 4
 
     def model_opt():
         if args.use_lstm:
             model = A3CLSTM(n_actions)
-
         else:
             model = A3CFF(n_actions)
+
+        serializers.load_hdf5("trained_model/80000000_finish.h5", model)
+
         if args.gpu >= 0:
             model.to_gpu(args.gpu)
         opt = rmsprop_async.RMSpropAsync(lr=args.lr, eps=1e-1, alpha=0.99)
-        opt.setup(model)
+        opt.setup(model.v)
+        opt.setup(model.fs_p)
+
         opt.add_hook(chainer.optimizer.GradientClipping(40))
         return model, opt
 

@@ -78,3 +78,10 @@ class GaussianPolicyOutput(PolicyOutput):
             fs_list.append(int(np.ceil(max(fs, 0.5))))
         return fs_list
 
+    @cached_property
+    def sample_output(self):
+        return F.select_item(
+            self.mu,
+            chainer.Variable(np.asarray(self.action_indices, dtype=np.int32)))
+
+

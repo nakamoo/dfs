@@ -22,6 +22,7 @@ from prepare_output_dir import prepare_output_dir
 def eval_performance(process_idx, make_env, model, phi, n_runs):
     assert n_runs > 1, 'Computing stdev requires at least two runs'
     scores = []
+    fs_list = []
     env = make_env(process_idx, test=True)
     for i in range(n_runs):
         env.reset()
@@ -29,18 +30,27 @@ def eval_performance(process_idx, make_env, model, phi, n_runs):
         obs = env.reset()
         done = False
         test_r = 0
+        action_count = 0
+        fss = 0
         while not done:
             s = chainer.Variable(np.expand_dims(phi(obs), 0).astype(np.float32))
             pout, _ = model.pi_and_v(s)
+            fs = model.fs(s, pout.action_indices).frameskip[0]
             a = pout.action_indices[0]
-            obs, r, done, info = env.step(a)
+            obs, r, done, info = env.step(a, frameskip=fs, eval=True)
             test_r += r
+            action_count += 1
+            fss += fs
         scores.append(test_r)
-        print('test_{}:'.format(i), test_r)
+        fs_list.append(fss/action_count)
+        print('test_{}:'.format(i), test_r, ' ave_fs{}:'.format(i), fss/action_count)
     mean = statistics.mean(scores)
     median = statistics.median(scores)
     stdev = statistics.stdev(scores)
-    return mean, median, stdev
+    afs_mean = statistics.mean(fs_list)
+    afs_median = statistics.median(fs_list)
+    afs_stdev = statistics.stdev(fs_list)
+    return mean, median, stdev, afs_mean, afs_median, afs_stdev
 
 
 def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
@@ -49,6 +59,7 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
 
         total_r = 0
         episode_r = 0
+        action_times = 0
         global_t = 0
         local_t = 0
         obs = env.reset()
@@ -73,20 +84,21 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
             episode_r += r
             # Get action and frameskip
             a, frameskip = agent.act(obs, r, done)
+            action_times += 1
 
             if done:
                 if process_idx == 0:
                     elapsed = time.time() - start_time
                     speed = global_t / elapsed * 60 * 60 / 1000000
-                    print('{} global_t:{} local_t:{} lr:{} r:{} speed;{}M/hour'.format(
+                    print('{} global_t:{} local_t:{} lr:{} r:{} speed:{:.2f}M/hour action_times:{}'.format(
                         outdir, global_t, local_t, agent.optimizer.lr,
-                        episode_r, speed))
+                        episode_r, speed, action_times))
                 episode_r = 0
+                action_times = 0
                 obs = env.reset()
                 r = 0
                 done = False
             else:
-                frameskip = random.randint(1, 5)
                 obs, r, done, info = env.step(a, frameskip=frameskip)
 
             if global_t % args.eval_frequency == 0:
@@ -96,12 +108,12 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
                 test_model = copy.deepcopy(agent.model)
                 test_model.reset_state()
 
-                mean, median, stdev = eval_performance(
+                mean, median, stdev, afs_mean, afs_median, afs_stdev = eval_performance(
                     process_idx, make_env, test_model, agent.phi,
                     args.eval_n_runs)
                 with open(os.path.join(outdir, 'scores.txt'), 'a+') as f:
                     elapsed = time.time() - start_time
-                    record = (global_t, elapsed, mean, median, stdev)
+                    record = (global_t, elapsed, mean, median, stdev, afs_mean, afs_median, afs_stdev)
                     print('\t'.join(str(x) for x in record), file=f)
                 with max_score.get_lock():
                     if mean > max_score.value:
