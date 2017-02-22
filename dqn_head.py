@@ -9,7 +9,7 @@ class NatureDQNHead(chainer.ChainList):
                  activation=F.relu, bias=0.1):
         self.n_input_channels = n_input_channels
         self.activation = activation
-        self.n_output_channels = n_output_channels
+        self.n_output_channels = n_output_channel 
 
         layers = [
             L.Convolution2D(n_input_channels, 32, 8, stride=4, bias=bias),

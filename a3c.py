@@ -74,6 +74,7 @@ class A3C(object):
 
         self.past_rewards[self.t - 1] = reward
 
+        # Update
         if (is_state_terminal and self.t_start < self.t) \
                 or self.t - self.t_start == self.t_max:
 
@@ -83,6 +84,7 @@ class A3C(object):
                 R = 0
             else:
                 _, vout = self.model.pi_and_v(statevar, keep_same_state=True)
+                fsout = self.model.dynamic_frame_skip(statevar, keep_same_state=True)
                 R = float(vout.data)
 
             pi_loss = 0
@@ -154,17 +156,19 @@ class A3C(object):
         if not is_state_terminal:
             self.past_states[self.t] = statevar
             pout, vout = self.model.pi_and_v(statevar)
-            self.past_action_log_prob[self.t] = pout.sampled_actions_log_probs
-            self.past_action_entropy[self.t] = pout.entropy
+            fsout = self.model.dynamic_frame_skip(statevar)
+            self.past_action_log_prob[self.t] = fsout.sampled_actions_log_probs(pout.action_indices)
+            self.past_action_entropy[self.t] = fsout.entropy
             self.past_values[self.t] = vout
             self.t += 1
             if self.process_idx == 0:
                 logger.debug('t:%s entropy:%s, probs:%s',
-                             self.t, pout.entropy.data, pout.probs.data)
-            return pout.action_indices[0]
+                             self.t, fsout.entropy.data, fsout.probs.data)
+            return pout.action_indices[0], fsout.dynamic_frame_skip(pout.action_indices)
         else:
             self.model.reset_state()
-            return None
+            return None, None
+
 
     def load_model(self, model_filename):
         """Load a network model form a file

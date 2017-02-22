@@ -20,15 +20,6 @@ import run_a3c
 import doom_env
 
 
-# def phi(obs):
-#     pic = Image.fromarray(obs)
-#     resize_pic = pic.resize((84, 84))
-#     image = np.asarray(resize_pic).transpose(2, 0, 1)
-#     image.flags.writeable = True
-#     image = image.astype(float) / 255.0
-#     return image
-
-
 class A3CFF(chainer.ChainList, a3c.A3CModel):
 
     def __init__(self, n_actions):
@@ -36,12 +27,18 @@ class A3CFF(chainer.ChainList, a3c.A3CModel):
         self.pi = policy.FCSoftmaxPolicy(
             self.head.n_output_channels, n_actions)
         self.v = v_function.FCVFunction(self.head.n_output_channels)
+        self.fs = policy.GaussianPolicy(
+            self.head.n_output_channels, n_actions)
         super().__init__(self.head, self.pi, self.v)
         init_like_torch(self)
 
     def pi_and_v(self, state, keep_same_state=False):
         out = self.head(state)
         return self.pi(out), self.v(out)
+
+    def dynamic_frame_skip(self, state, keep_same_state=False):
+        out = self.head(state)
+        return self.fs(out)
 
 
 class A3CLSTM(chainer.ChainList, a3c.A3CModel):

@@ -5,6 +5,7 @@ import os
 import sys
 import statistics
 import time
+import random
 
 import chainer
 from chainer import links as L
@@ -70,7 +71,8 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
 
             total_r += r
             episode_r += r
-            a = agent.act(obs, r, done)
+            # Get action and frameskip
+            a, frameskip = agent.act(obs, r, done)
 
             if done:
                 if process_idx == 0:
@@ -84,7 +86,8 @@ def train_loop(process_idx, counter, make_env, max_score, args, agent, env,
                 r = 0
                 done = False
             else:
-                obs, r, done, info = env.step(a)
+                frameskip = random.randint(1, 5)
+                obs, r, done, info = env.step(a, frameskip=frameskip)
 
             if global_t % args.eval_frequency == 0:
                 # Evaluation

@@ -58,7 +58,36 @@ class FCSoftmaxPolicy(chainer.ChainList, SoftmaxPolicy):
         return h
 
 
-class GaussianPolicy(Policy):
-    """Abstract Gaussian policy class.
-    """
-    pass
+class GaussianPolicy(chainer.ChainList, Policy):
+    def __init__(self, n_input_channels, n_actions,
+                 n_hidden_layers=0, n_hidden_channels=None):
+        self.n_input_channels = n_input_channels
+        self.n_actions = n_actions
+        self.n_hidden_layers = n_hidden_layers
+        self.n_hidden_channels = n_hidden_channels
+
+        layers = []
+        if n_hidden_layers > 0:
+            layers.append(L.Linear(n_input_channels, n_hidden_channels))
+            for i in range(n_hidden_layers - 1):
+                layers.append(L.Linear(n_hidden_channels, n_hidden_channels))
+            layers.append(L.Linear(n_hidden_channels, n_actions))
+            layers.append(L.Linear(n_hidden_channels, 1))
+        else:
+            layers.append(L.Linear(n_input_channels, n_actions))
+            layers.append(L.Linear(n_input_channels, 1))
+
+        super(GaussianPolicy, self).__init__(*layers)
+
+    def __call__(self, state):
+        mu, var = self.compute_logits(state)
+        return policy_output.GaussianPolicyOutput(mu, var)
+
+    def compute_logits(self, state):
+        h = state
+        for layer in self[:-2]:
+            h = F.relu(layer(h))
+        mu = F.relu(self[-2](h))
+        var = F.softplus(self[-1](h))
+        return mu, var
+

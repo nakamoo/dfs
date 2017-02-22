@@ -30,7 +30,6 @@ def _sample_discrete_actions(batch_probs):
 
 
 class SoftmaxPolicyOutput(PolicyOutput):
-
     def __init__(self, logits):
         self.logits = logits
 
@@ -59,3 +58,49 @@ class SoftmaxPolicyOutput(PolicyOutput):
     @cached_property
     def entropy(self):
         return - F.sum(self.probs * self.log_probs, axis=1)
+
+
+class GaussianPolicyOutput(PolicyOutput):
+    def __init__(self, logits_mu, logits_var):
+        self.logits_mu = logits_mu
+        self.logits_var = logits_var
+
+        # print("self.logits_mu.data: ", self.logits_mu.data)
+
+    @cached_property
+    def probs(self):
+        return self.logits_mu
+
+    def dynamic_frame_skip(self, action_indices):
+        # the function has same name as for SoftmaxPolicyOutput so that the function
+        # can be called from a3c.py without changes
+        # however, the function samples from gaussian distributions
+
+        fs_list = []
+        mu, sigma2 = self.logits_mu.data, self.logits_var.data
+
+        # print("mu.data: ", mu.data)
+        # print("sigma2.data: ", sigma2.data)
+        for i in range(mu.shape[0]):
+            mu_i = mu[i][action_indices[i]]
+            fs = float(np.random.normal(mu_i, sigma2))
+            fs_list.append(int(np.ceil(max(fs, 0.5))))
+        return fs_list
+
+    def sampled_actions_log_probs(self, action_indices):
+        # sample action
+        fs = self.dynamic_frame_skip(action_indices)
+        fs = chainer.Variable(np.array(fs).astype(np.float32))
+        mu_selected = F.select_item(self.logits_mu,
+                    chainer.Variable(np.asarray(action_indices, dtype=np.int32)))
+
+        # compute neg. log likelihood
+        # print("chainer.Variable(action).dtype: ", chainer.Variable(fs).dtype)
+        # print("mu.dtype: ", mu_selected.dtype)
+        # print("F.log(sigma2).dtype: ", F.log(self.logits_var).dtype)
+
+        return - F.gaussian_nll(fs, mu_selected, F.log(self.logits_var[0]))
+
+    @cached_property
+    def entropy(self):
+        return - F.sum(0.5 * (F.log(2 * np.pi * self.logits_var) + 1))
