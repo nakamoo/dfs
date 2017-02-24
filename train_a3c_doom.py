@@ -78,10 +78,10 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--processes', type=int, default=4)
+    parser.add_argument('--processes', type=int, default=8)
     parser.add_argument('--seed', type=int, default=100)
     parser.add_argument('--outdir', type=str)
-    parser.add_argument('--t-max', type=int, default=5)
+    parser.add_argument('--t-max', type=int, default=20)
     parser.add_argument('--beta', type=float, default=1e-2)
     parser.add_argument('--profile', action='store_true')
     parser.add_argument('--steps', type=int, default=8 * 10 ** 8)
@@ -119,6 +119,7 @@ def main():
             model = A3CFF(n_actions)
 
         serializers.load_hdf5("trained_model/80000000_finish.h5", model)
+        model.v.__init__(model.head.n_output_channels)
 
         if args.gpu >= 0:
             model.to_gpu(args.gpu)

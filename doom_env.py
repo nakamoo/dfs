@@ -13,6 +13,7 @@ class Env(object):
         self.n_actions = 4
         self._state_buffer = None
         self.render = True
+        self.action_penalty = 0.02
 
     def reset(self):
         self._state_buffer = None
@@ -29,7 +30,7 @@ class Env(object):
 
         # action penalty
         if not eval:
-            reward -= 0.3
+            reward -= self.action_penalty
 
         return self._preprocess_state(state), reward, terminal, info
 
