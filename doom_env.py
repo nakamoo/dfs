@@ -12,7 +12,7 @@ class Env(object):
         self.real_action = [0, 1, 2, 5]
         self.n_actions = 4
         self._state_buffer = None
-        self.render = False
+        self.render = True
 
     def reset(self):
         self._state_buffer = None
@@ -23,7 +23,7 @@ class Env(object):
             self.env.render()
 
         if frameskip is not None:
-            self.env.env.frameskip = frameskip
+            self.env.frameskip = frameskip
 
         state, reward, terminal, info = self.env.step(self.real_action[action])
 
