@@ -1,4 +1,5 @@
 import copy
+import logging
 from logging import getLogger
 import os
 
@@ -10,6 +11,8 @@ from chainer import functions as F
 import copy_param
 
 logger = getLogger(__name__)
+# logging.basicConfig(level=logging.DEBUG)
+
 
 
 class A3CModel(chainer.Link):
@@ -135,6 +138,7 @@ class A3C(object):
             self.model.unchain_backward()
 
             self.past_frameskip = {}
+            self.past_fsoutput = {}
             self.past_states = {}
             self.past_rewards = {}
             self.past_values = {}
@@ -157,7 +161,6 @@ class A3C(object):
         else:
             self.model.reset_state()
             return None, None
-
 
     def load_model(self, model_filename):
         """Load a network model form a file

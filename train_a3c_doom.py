@@ -78,15 +78,15 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--processes', type=int, default=1)
+    parser.add_argument('--processes', type=int, default=4)
     parser.add_argument('--seed', type=int, default=100)
     parser.add_argument('--outdir', type=str)
     parser.add_argument('--t-max', type=int, default=5)
     parser.add_argument('--beta', type=float, default=1e-2)
     parser.add_argument('--profile', action='store_true')
-    parser.add_argument('--steps', type=int, default=8 * 10 ** 7)
+    parser.add_argument('--steps', type=int, default=8 * 10 ** 8)
     parser.add_argument('--lr', type=float, default=7e-4)
-    parser.add_argument('--eval-frequency', type=int, default=2 * 10 ** 4)
+    parser.add_argument('--eval-frequency', type=int, default=2 * 10 ** 5)
     parser.add_argument('--eval-n-runs', type=int, default=10)
     parser.add_argument('--use-lstm', action='store_true')
     parser.add_argument('--gpu', '-g', default=-1, type=int,
@@ -123,6 +123,7 @@ def main():
         if args.gpu >= 0:
             model.to_gpu(args.gpu)
         opt = rmsprop_async.RMSpropAsync(lr=args.lr, eps=1e-1, alpha=0.99)
+        # opt.setup(model)
         opt.setup(model.v)
         opt.setup(model.fs_p)
 

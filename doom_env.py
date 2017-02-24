@@ -29,7 +29,7 @@ class Env(object):
 
         # action penalty
         if not eval:
-            reward -= 0.02
+            reward -= 0.3
 
         return self._preprocess_state(state), reward, terminal, info
 
